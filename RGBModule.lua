@@ -1,5 +1,5 @@
 ConfigRGBModule = {
-  PWM_MAX = 512,
+  PWM_MAX = 1023,
   PWM_OFF = 0,
   INITIAL_RGB = {255,0,0},
   PIN_R = 1,
@@ -82,9 +82,23 @@ RGBModule = {
 
 utils = {
   getRandomNumber = function (from, to)
+
+  local function log(x)
+    assert(x > 0)
+    local a, b, c, d, e, f = x < 1 and x or 1/x, 0, 0, 1, 1
+    repeat
+       repeat
+          c, d, e, f = c + d, b * d / e, e + 1, c
+       until c == f
+       b, c, d, e, f = b + 1 - a * c, 0, 1, 1, b
+       until b <= f
+       return a == x and -f or f
+    end
+    
     local r = 0
     local n = 2^math.random(30) -- Any power of 2.
-    local limit = math.ceil(53 / (math.log(n) / math.log(2)))
+    local limit = math.ceil(53 / (log(n) / log(2)))
+    
     for i = 1, limit do
       r = r + math.random(0, n - 1) / (n^i)
     end
@@ -96,29 +110,45 @@ RGBEffects = {
   effectTimer = tmr.create(),
   
   startRandomRainbow = function(self, duration)
-    self.effectTimer:register(duration, tmr.ALARM_AUTO, randomRainbow)
+    self.effectTimer:register(duration, tmr.ALARM_AUTO, function (t)
+--        print("run") 
+        self.randomRainbow(duration)
+    end)
+    self.effectTimer:start()
   end,
 
-  randomRainbow = function() 
+  randomRainbow = function(duration) 
     local randomRGB = {utils.getRandomNumber(0, ConfigRGBModule.PWM_MAX), utils.getRandomNumber(0, ConfigRGBModule.PWM_MAX),utils.getRandomNumber(0, ConfigRGBModule.PWM_MAX)}
-    RGBModule.fadeTo(randomRGB)
+    print(randomRGB[1], randomRGB[2], randomRGB[3])
+    RGBModule:RGBFadeTo(randomRGB, duration)
   end,
 
   stopRandomRainbow = function(self)
+    
     self.effectTimer:unregister()
+    print(self.effectTimer:state())
   end
 
 }
 
 
  RGBModule:initRGB()
- RGBModule:setRGB({10,10,10})
+ RGBModule:setRGB({255,10,10})
 
- RGBModule:RGBFadeTo({0, ConfigRGBModule.PWM_MAX, 0},500)
- RGBModule:RGBFadeTo({0, 0, ConfigRGBModule.PWM_MAX},500)
- RGBModule:RGBFadeTo({ConfigRGBModule.PWM_MAX, ConfigRGBModule.PWM_MAX, ConfigRGBModule.PWM_MAX},500)
+-- RGBModule:RGBFadeTo({0, ConfigRGBModule.PWM_MAX, 0},500)
+-- RGBModule:RGBFadeTo({0, 0, ConfigRGBModule.PWM_MAX},500)
+-- RGBModule:RGBFadeTo({ConfigRGBModule.PWM_MAX, ConfigRGBModule.PWM_MAX, ConfigRGBModule.PWM_MAX},500)
 
+RGBEffects:startRandomRainbow(3000)
+--
+removeTimer = tmr.create()
 
+removeTimer:register(12000, tmr.ALARM_SINGLE, function(t)
+    RGBEffects:stopRandomRainbow()
+    RGBModule:setRGB(RGBModule.currentRGB)
+    t:unregister()
+end)
+removeTimer:start()
 
 
 
